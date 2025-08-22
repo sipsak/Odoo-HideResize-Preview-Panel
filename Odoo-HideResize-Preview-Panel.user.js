@@ -10,8 +10,8 @@
 // @match           https://*.odoo.com/*
 // @grant           none
 // @icon            https://raw.githubusercontent.com/sipsak/odoo-image-enlarger/refs/heads/main/icon.png
-// @updateURL       https://raw.githubusercontent.com/sipsak/Odoo-Batch-Processing/main/Odoo-HideResize-Preview-Panel.user.js
-// @downloadURL     https://raw.githubusercontent.com/sipsak/Odoo-Batch-Processing/main/Odoo-HideResize-Preview-Panel.user.js
+// @updateURL       https://raw.githubusercontent.com/sipsak/Odoo-HideResize-Preview-Panel/main/Odoo-HideResize-Preview-Panel.user.js
+// @downloadURL     https://raw.githubusercontent.com/sipsak/Odoo-HideResize-Preview-Panel/main/Odoo-HideResize-Preview-Panel.user.js
 // ==/UserScript==
 
 (function () {
@@ -483,5 +483,6 @@
         st.appendChild(document.createTextNode(s));
         document.head.appendChild(st);
     }
+
 
 })();
