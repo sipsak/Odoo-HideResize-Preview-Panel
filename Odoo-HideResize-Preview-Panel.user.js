@@ -2,16 +2,16 @@
 // @name            Odoo Hide & Resize Preview Panel
 // @name:tr         Odoo Önizleme Panelini Gizleme ve Boyutlandırma
 // @namespace       https://github.com/sipsak
-// @version         1.0
+// @version         1.1
 // @description     Adds hide and resize functionality to the preview panel in Odoo. Simply double-click the splitter in the middle to restore the panel to its default size.
 // @description:tr  Odoo'da bulunan önizleme paneline gizleme ve boyutlandırma özellikleri ekler, paneli varsayılan boyutuna döndürmek için ortaya çift tıklamanız yeterlidir.
 // @author          Burak Şipşak
 // @match           https://portal.bskhvac.com.tr/*
 // @match           https://*.odoo.com/*
 // @grant           none
-// @icon            https://raw.githubusercontent.com/sipsak/odoo-image-enlarger/refs/heads/main/icon.png
-// @updateURL       https://raw.githubusercontent.com/sipsak/Odoo-HideResize-Preview-Panel/main/Odoo-HideResize-Preview-Panel.user.js
-// @downloadURL     https://raw.githubusercontent.com/sipsak/Odoo-HideResize-Preview-Panel/main/Odoo-HideResize-Preview-Panel.user.js
+// @icon            data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHZpZXdCb3g9IjAgMCA1MCA1MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNNDQuNTIxIDUuNWE0LjQ3NyA0LjQ3NyAwIDAgMSAwIDYuMzMybC0zNC4xOSAzNC4xOUg0VjM5LjY5TDM4LjE5IDUuNWE0LjQ3NyA0LjQ3NyAwIDAgMSA2LjMzMSAwWiIgZmlsbD0iIzJFQkNGQSIvPjxwYXRoIGQ9Ik0xMC45IDE1LjEyMiA0Ljg5OCA5LjEyYTkuMDA0IDkuMDA0IDAgMCAwIDEwLjQ4IDEyLjU2OGwyMy4wMDEgMjNhNC40NzcgNC40NzcgMCAwIDAgNi4zMzEtNi4zM2wtMjMtMjMuMDAxQTkuMDA0IDkuMDA0IDAgMCAwIDkuMTQxIDQuODc3bDYuMDAyIDYuMDAyLTQuMjQzIDQuMjQzWiIgZmlsbD0iIzk4NTE4NCIvPjxwYXRoIGQ9Ik0yNS4wMjMgMTguNjcgMTguNjkgMjVsNi4zMzIgNi4zMzFMMzEuMzUyIDI1bC02LjMzLTYuMzMxWiIgZmlsbD0iIzE0NDQ5NiIvPjwvc3ZnPgo=
+// @updateURL       https://raw.githubusercontent.com/sipsak/Odoo-Batch-Processing/main/Odoo-HideResize-Preview-Panel.user.js
+// @downloadURL     https://raw.githubusercontent.com/sipsak/Odoo-Batch-Processing/main/Odoo-HideResize-Preview-Panel.user.js
 // ==/UserScript==
 
 (function () {
@@ -53,8 +53,13 @@
         font-weight: 700;
         box-shadow: 0 1px 4px rgba(0,0,0,0.12);
         user-select: none;
+        opacity: 0;
+        transition: opacity 0.2s ease;
     }
     .tm-collapse-overlay-btn:hover { background: rgba(255,255,255,1); }
+    .o_attachment_preview:hover .tm-collapse-overlay-btn {
+        opacity: 1;
+    }
 
     .tm-attachment-placeholder.o_attachment_preview {
         position: absolute;
@@ -110,7 +115,7 @@
         top: 50%;
         transform: translateY(-50%);
         background-color: black;
-        opacity: 0.3;
+        opacity: 0;
         transition: all 0.25s;
         border-radius: 0 30px 30px 0;
         padding: 12px 12px 12px 6px;
@@ -127,6 +132,12 @@
         left: 0;
     }
     .tm-central-toggle.o_attachment_control:hover { opacity: 0.7; }
+    .o_attachment_preview:hover .tm-central-toggle.o_attachment_control {
+        opacity: 0.3;
+    }
+    .o_attachment_preview:hover .tm-central-toggle.o_attachment_control:hover {
+        opacity: 0.7;
+    }
     .tm-central-toggle.o_attachment_control::after {
         color: white;
         content: '>>';
@@ -155,20 +166,36 @@
     }
 
     function tryAttachSplitters() {
-        const containers = document.querySelectorAll('.o_form_renderer.o_form_editable.d-flex.flex-nowrap.h-100.o_form_saved');
+        const containers = document.querySelectorAll('.o_form_renderer');
         containers.forEach(container => {
-            if (container.getAttribute(INITED_ATTR) === '1') return;
-
             const left = container.querySelector('.o_form_sheet_bg');
             const right = container.querySelector('.o_attachment_preview');
 
-            if (!left || !right) return;
+            if (!left || !right) {
+                container.removeAttribute(INITED_ATTR);
+                return;
+            }
+
+            const alreadyInited = container.getAttribute(INITED_ATTR) === '1';
+            const existingSplitter = container.querySelector('.' + SPLITTER_CLASS);
+
+            if (alreadyInited) {
+                if (!existingSplitter) {
+                    container.removeAttribute(INITED_ATTR);
+                } else {
+                    setupCollapseControls(container, left, right, existingSplitter);
+                    if (container._tmSaved && container._tmSaved.collapsed) {
+                        enforceCollapsedState(container, left, right, existingSplitter);
+                    }
+                    setTimeout(() => updateAllCentralPositions(container, left, right, existingSplitter), 30);
+                    return;
+                }
+            }
 
             container.setAttribute(INITED_ATTR, '1');
 
             const splitter = document.createElement('div');
             splitter.className = SPLITTER_CLASS;
-            splitter.title = 'Drag to resize panels — çift tıkla reset';
             splitter.setAttribute('data-tm-splitter', '1');
             left.parentNode.insertBefore(splitter, right);
 
@@ -177,6 +204,9 @@
             setupPointerDrag(splitter, container, left, right);
             setupCollapseControls(container, left, right, splitter);
 
+            if (container._tmSaved && container._tmSaved.collapsed) {
+                enforceCollapsedState(container, left, right, splitter);
+            }
             setTimeout(() => updateAllCentralPositions(container, left, right, splitter), 30);
         });
     }
@@ -279,6 +309,10 @@
         container._tmSaved.right = container._tmSaved.right || {};
 
         function tryInjectIntoIframe() {
+            if (container._tmSaved && container._tmSaved.collapsed) {
+                enforceCollapsedState(container, left, right, splitter);
+                return;
+            }
             const iframe = right.querySelector('iframe') || right.querySelector('object') || null;
             if (iframe) {
                 ensureCentralButtonInsideRight(splitter, container, left, right);
@@ -299,6 +333,59 @@
         rightMo.observe(right, { childList: true, subtree: true, attributes: true });
     }
 
+    function enforceCollapsedState(container, left, right, splitter) {
+        try {
+            if (!container._tmSaved) container._tmSaved = {};
+            if (container._tmSaved.leftInline === undefined) container._tmSaved.leftInline = left.getAttribute('style') || '';
+            if (container._tmSaved.rightInline === undefined) container._tmSaved.rightInline = right.getAttribute('style') || '';
+            if (container._tmSaved.splitterInline === undefined) container._tmSaved.splitterInline = (splitter && splitter.getAttribute('style')) || '';
+        } catch (e) {}
+        try {
+            right.style.display = 'none';
+        } catch (e) {}
+        try {
+            if (splitter) splitter.style.display = 'none';
+        } catch (e) {}
+        try {
+            left.style.flex = '1 1 100%';
+            left.style.width = '';
+            left.style.minWidth = '';
+        } catch (e) {}
+        try {
+            const overlay = right.querySelector('.tm-collapse-overlay-btn');
+            if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
+        } catch (e) {}
+        try {
+            const central = right.querySelector('.tm-central-toggle');
+            if (central && central.parentNode) central.parentNode.removeChild(central);
+        } catch (e) {}
+        if (!container._tmSaved) container._tmSaved = {};
+        if (!container._tmSaved._placeholder) {
+            const parent = container.parentNode || document.body;
+            const placeholder = document.createElement('div');
+            placeholder.className = 'o_attachment_preview hidden tm-attachment-placeholder';
+            if (getComputedStyle(parent).position === 'static') {
+                parent.style.position = 'relative';
+            }
+            placeholder.style.top = '0';
+            placeholder.style.right = '0';
+            placeholder.style.height = '100%';
+            placeholder.style.pointerEvents = 'auto';
+            const ctl = document.createElement('div');
+            ctl.className = 'o_attachment_control';
+            ctl.textContent = '';
+            ctl.setAttribute('role', 'button');
+            ctl.addEventListener('click', (e) => {
+                e.preventDefault();
+                reopenAttachment(container, left, right, splitter, placeholder);
+            });
+            placeholder.appendChild(ctl);
+            parent.appendChild(placeholder);
+            container._tmSaved._placeholder = placeholder;
+        }
+        container._tmSaved.collapsed = true;
+    }
+
     function ensureCentralButtonInsideRight(splitter, container, left, right) {
         if (!right) return;
         try {
@@ -311,7 +398,6 @@
             ctl = document.createElement('div');
             ctl.className = 'o_attachment_control tm-central-toggle';
             ctl.setAttribute('role', 'button');
-            ctl.setAttribute('aria-label', 'Sağ paneli kapat (>>)');
             ctl.innerText = '';
             ctl.style.pointerEvents = 'auto';
             ctl.addEventListener('click', (e) => {
@@ -337,7 +423,6 @@
         const overlay = document.createElement('div');
         overlay.className = 'tm-collapse-overlay-btn';
         overlay.innerText = '✕';
-        overlay.title = 'Paneli Kapat (overlay X)';
         overlay.addEventListener('click', (e) => {
             e.preventDefault();
             collapseAttachment(container, left, rightElement, splitter);
@@ -383,6 +468,10 @@
         container._tmSaved.leftInline = left.getAttribute('style') || '';
         container._tmSaved.rightInline = right.getAttribute('style') || '';
         container._tmSaved.splitterInline = splitter.getAttribute('style') || '';
+        try {
+            const leftRect = left.getBoundingClientRect();
+            container._tmSaved.leftWidthPx = Math.round(leftRect.width);
+        } catch (e) {}
 
         right.style.display = 'none';
         splitter.style.display = 'none';
@@ -415,7 +504,6 @@
             ctl.className = 'o_attachment_control';
             ctl.textContent = '';
             ctl.setAttribute('role', 'button');
-            ctl.setAttribute('aria-label', 'Kapanmış paneli aç');
 
             ctl.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -431,6 +519,9 @@
     }
 
     function reopenAttachment(container, left, right, splitter, placeholderElement) {
+        if (!left || !left.isConnected) left = container.querySelector('.o_form_sheet_bg');
+        if (!right || !right.isConnected) right = container.querySelector('.o_attachment_preview');
+        if (!splitter || !splitter.isConnected) splitter = container.querySelector('.' + SPLITTER_CLASS);
         let placeholder = placeholderElement || (container.parentNode || document.body).querySelector('.tm-attachment-placeholder');
         if (placeholder && placeholder.parentNode) placeholder.parentNode.removeChild(placeholder);
 
@@ -441,6 +532,12 @@
             if (!container._tmSaved.leftInline) left.removeAttribute('style');
             if (!container._tmSaved.rightInline) right.removeAttribute('style');
             if (!container._tmSaved.splitterInline) splitter.removeAttribute('style');
+            if (!container._tmSaved.leftInline && container._tmSaved.leftWidthPx) {
+                left.style.flex = '0 0 ' + container._tmSaved.leftWidthPx + 'px';
+            }
+            right.style.flex = right.style.flex || '1 1 auto';
+            right.style.display = '';
+            splitter.style.display = '';
             container._tmSaved.collapsed = false;
             container._tmSaved._placeholder = null;
         } else {
@@ -465,7 +562,6 @@
                     const overlay = document.createElement('div');
                     overlay.className = 'tm-collapse-overlay-btn';
                     overlay.innerText = '✕';
-                    overlay.title = 'Paneli Kapat (overlay X)';
                     overlay.addEventListener('click', (e) => {
                         e.preventDefault();
                         collapseAttachment(container, left, right, splitter);
@@ -483,6 +579,5 @@
         st.appendChild(document.createTextNode(s));
         document.head.appendChild(st);
     }
-
 
 })();
