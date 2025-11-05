@@ -2,7 +2,7 @@
 // @name            Odoo Hide & Resize Preview Panel
 // @name:tr         Odoo Önizleme Panelini Gizleme ve Boyutlandırma
 // @namespace       https://github.com/sipsak
-// @version         1.1
+// @version         1.1.1
 // @description     Adds hide and resize functionality to the preview panel in Odoo. Simply double-click the splitter in the middle to restore the panel to its default size.
 // @description:tr  Odoo'da bulunan önizleme paneline gizleme ve boyutlandırma özellikleri ekler, paneli varsayılan boyutuna döndürmek için ortaya çift tıklamanız yeterlidir.
 // @author          Burak Şipşak
@@ -176,20 +176,22 @@
                 return;
             }
 
-            const alreadyInited = container.getAttribute(INITED_ATTR) === '1';
             const existingSplitter = container.querySelector('.' + SPLITTER_CLASS);
 
-            if (alreadyInited) {
-                if (!existingSplitter) {
-                    container.removeAttribute(INITED_ATTR);
-                } else {
-                    setupCollapseControls(container, left, right, existingSplitter);
-                    if (container._tmSaved && container._tmSaved.collapsed) {
-                        enforceCollapsedState(container, left, right, existingSplitter);
-                    }
-                    setTimeout(() => updateAllCentralPositions(container, left, right, existingSplitter), 30);
-                    return;
+            if (existingSplitter) {
+                const alreadyInited = container.getAttribute(INITED_ATTR) === '1';
+                if (!alreadyInited) {
+                    container.setAttribute(INITED_ATTR, '1');
+                    container._tmSaved = container._tmSaved || {};
+                    setupPointerDrag(existingSplitter, container, left, right);
                 }
+
+                setupCollapseControls(container, left, right, existingSplitter);
+                if (container._tmSaved && container._tmSaved.collapsed) {
+                    enforceCollapsedState(container, left, right, existingSplitter);
+                }
+                setTimeout(() => updateAllCentralPositions(container, left, right, existingSplitter), 30);
+                return;
             }
 
             container.setAttribute(INITED_ATTR, '1');
